@@ -23,20 +23,18 @@
            )))
 
 (defn find-by [fn coll]
-  (-> (drop-while fn coll)
+  (-> (drop-while #(not (fn %)) coll)
       (first)))
 
-(def img-data
+(defn solve2 []
   (-> (slurp input-file)
       (str/trim-newline)
       (str/split #"")
       (->> (map edn/read-string)
            (partition partition-size)
            (apply mapv vector)
-           (mapv (partial find-by #(= 2 %)))
+           (mapv (partial find-by #(not (= 2 %))))
            (mapv #(if (= 0 %) " " "X"))
            (partition 25)
-           )))
-
-(defn solve2 []
-  (doseq [line img-data] (println line)))
+           (mapv println)
+           (dorun))))
