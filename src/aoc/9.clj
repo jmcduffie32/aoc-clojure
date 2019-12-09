@@ -18,23 +18,21 @@
              (mod opcode 10))
    :arg1-mode (-> opcode
                   (mod 1000)
-                  (quot 100)
-                  (* 100))
+                  (quot 100))
    :arg2-mode (-> opcode
                   (mod 10000)
-                  (quot 1000)
-                  (* 1000))
+                  (quot 1000))
   :arg3-mode (-> opcode
                  (mod 100000)
-                 (quot 10000)
-                 (* 10000))})
+                 (quot 10000))})
 
 (defn get-val [program index mode rel-base]
-  (do (println "mode:" mode "index:" index "rel-base:" rel-base)
-      (cond
-        (= mode 0) (nth program (nth program index))
-        (= mode 1) (nth program index)
-        (= mode 2) (nth program (+ index rel-base)))))
+  (do
+    ;; (println "mode:" mode "index:" index "rel-base:" rel-base)
+    (cond
+      (= mode 0) (get program (get program index 0) 0)
+      (= mode 1) (get program index 0)
+      (= mode 2) (get program (+ index rel-base) 0))))
 
 (def init-input {:input 0
                  :index 0
@@ -47,6 +45,7 @@
   (let [{:keys [program index input-type rel-base]} state
         {:keys [opcode arg1-mode arg2-mode arg3-mode]}
         (parse-opcode (nth program index))]
+    ;; (println opcode arg1-mode arg2-mode arg3-mode)
     (cond
       (= opcode 1) (let [val1 (get-val program (+ index 1) arg1-mode rel-base)
                          val2 (get-val program (+ index 2) arg2-mode rel-base)
@@ -74,7 +73,8 @@
                      (println output)
                      (-> state
                          (assoc :index (+ index 2))
-                         (assoc :output output)))
+                         (assoc :output output)
+                         (recur)))
       (= opcode 5) (let [val1 (get-val program (+ index 1) arg1-mode rel-base)
                          val2 (get-val program (+ index 2) arg2-mode rel-base)]
                      (-> state
@@ -109,7 +109,7 @@
                          (recur)))
       (= opcode 99) (-> state
                         (assoc :has-halted true))
-      :else (do (println "INVALID OP CODE: " opcode) program))))
+      :else (do (println "INVALID OP CODE: " opcode) state))))
 
 (defn solve []
   (run-prog init-input))
