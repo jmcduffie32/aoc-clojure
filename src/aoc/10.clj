@@ -79,3 +79,68 @@
        (map count)
        (apply max)))
 
+
+(defn calc-slope2 [point1 point2]
+  (let [x1 (:x point1)
+        x2 (:x point2)
+        y1 (:y point1)
+        y2 (:y point2)]
+    (let [deltax (- x2 x1)
+          deltay (- y2 y1)]
+      {:x x2
+       :y y2
+       ;; :slope (/ deltay deltax)
+       :distance (Math/sqrt (+ (Math/pow deltax 2) (Math/pow deltay 2)))
+       :angle (let [rad (Math/atan2 deltax (* -1 deltay))]
+                (cond
+                  (and (= deltax 0) (> 0 deltay)) 0
+                  :else (if (< 0 rad)
+                          rad
+                          (+ rad (* 2 Math/PI)))))})
+    ;; (cond
+    ;;   (and (= x1 x2) (> y2 y1)) {:x x2
+    ;;                              :y y2
+    ;;                              :slope Double/POSITIVE_INFINITY
+    ;;                              :angle Math/PI}
+    ;;   (and (= x1 x2) (< y2 y1)) {:x x2
+    ;;                              :y y2
+    ;;                              :slope Double/POSITIVE_INFINITY
+    ;;                              :angle 0}
+    ;;   :else (let [deltax (- x2 x1)
+    ;;               deltay (- y2 y1)]
+    ;;           {:x x2
+    ;;             :y y2
+    ;;             :slope (/ deltay deltax)
+    ;;            :angle (Math/atan2 deltax deltay)}))
+    ))
+
+;; 19,11 is where the station is
+(def station {:x 19 :y 11})
+(def non-station
+  (->> points
+       (filter #(not (= % station)))))
+
+(def grouped-points
+  (->> non-station
+       (map (fn [point2] (calc-slope2 station point2)))
+       (sort-by (juxt :angle :distance))
+       (partition-by :angle)))
+
+(def point-list
+  (->> (for [i (range 9)
+             group grouped-points]
+         (get (into [] group) i))
+       (filterv not-empty)))
+
+(defn illustrate [point-list asteroid-map idx]
+  (if (empty? point-list)
+    asteroid-map
+    (let [[point & rest] point-list
+          x (:x point)
+          y (:y point)]
+      (recur rest (assoc-in asteroid-map [y x] idx) (inc idx)))))
+
+(def illustrated-list (illustrate point-list asteroid-map 0))
+
+(defn solve2 []
+  (get point-list 199))
