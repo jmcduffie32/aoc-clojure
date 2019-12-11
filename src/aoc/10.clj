@@ -89,7 +89,6 @@
           deltay (- y2 y1)]
       {:x x2
        :y y2
-       ;; :slope (/ deltay deltax)
        :distance (Math/sqrt (+ (Math/pow deltax 2) (Math/pow deltay 2)))
        :angle (let [rad (Math/atan2 deltax (* -1 deltay))]
                 (cond
@@ -97,21 +96,6 @@
                   :else (if (< 0 rad)
                           rad
                           (+ rad (* 2 Math/PI)))))})
-    ;; (cond
-    ;;   (and (= x1 x2) (> y2 y1)) {:x x2
-    ;;                              :y y2
-    ;;                              :slope Double/POSITIVE_INFINITY
-    ;;                              :angle Math/PI}
-    ;;   (and (= x1 x2) (< y2 y1)) {:x x2
-    ;;                              :y y2
-    ;;                              :slope Double/POSITIVE_INFINITY
-    ;;                              :angle 0}
-    ;;   :else (let [deltax (- x2 x1)
-    ;;               deltay (- y2 y1)]
-    ;;           {:x x2
-    ;;             :y y2
-    ;;             :slope (/ deltay deltax)
-    ;;            :angle (Math/atan2 deltax deltay)}))
     ))
 
 ;; 19,11 is where the station is
@@ -143,4 +127,5 @@
 (def illustrated-list (illustrate point-list asteroid-map 0))
 
 (defn solve2 []
-  (get point-list 199))
+  (-> (get point-list 199)
+      ((fn [point] (+ (* 100 (:x point)) (:y point))))))
