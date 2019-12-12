@@ -1,5 +1,9 @@
-(ns aoc.11 (:require [clojure.string :as str]
-                     [clojure.edn :as edn]))
+(ns aoc.11
+  (:require [clojure.string :as str]
+            [clojure.edn :as edn]
+            [incanter.core :as core]
+            [incanter.charts :as charts]
+            [incanter.datasets]))
 
 (def input-file "./resources/11_1.csv")
 ;; (def input-file "./resources/10_test.csv")
@@ -47,12 +51,25 @@
       (= mode 0) value-at-index
       (= mode 2) (+ value-at-index rel-base))))
 
-(def init-input {:input 0
+(defn create-position-key [position]
+  (str (:x position) ":" (:y position)))
+
+(defn get-current-color [board-state]
+  (let [position (:position board-state)
+        key (create-position-key position)
+        current-color (get (:visited board-state) key :black)]
+    (if (= current-color :black) 0 1)))
+
+(def init-input {:input 1
                  :index 0
                  :output nil
+                 :output-type :color
                  :input-type :input
                  :program (apply conj prog (take 10000 (repeat 0)))
-                 :rel-base 0})
+                 :rel-base 0
+                 :board {:position {:x 0 :y 0}
+                         :direction :up
+                         :visited {"0:0" :white}}})
 
 (defn run-prog [state]
   (let [{:keys [program index input-type rel-base]} state
@@ -80,7 +97,7 @@
                          (assoc :program (assoc program result-index product))
                          (assoc :index (+ index 4))
                          (recur)))
-      (= opcode 3) (let [input ((:input-type state) state)
+      (= opcode 3) (let [input (get-current-color (:board state))
                          result-index (get-output-index program (+ index 1) arg1-mode rel-base)]
                      (-> state
                          (assoc :program (assoc program result-index input))
@@ -129,17 +146,90 @@
                         (assoc :has-halted true))
       :else (do (println "INVALID OP CODE: " opcode) state))))
 
-(def init-board-state
-  {:current-position {:x 0 :y 0}
-   :visited {}})
 
-(defn solve []
-  (loop [prog-state init-input
-         output []
-         board-state init-board-state]
-    (let [new-prog-state (run-prog prog-state)]
+
+(defn get-new-direction [current-direction turn]
+  (if (= turn 0)
+    (cond
+      (= current-direction :up) :left
+      (= current-direction :down) :right
+      (= current-direction :left) :down
+      (= current-direction :right) :up)
+    (cond
+      (= current-direction :up) :right
+      (= current-direction :down) :left
+      (= current-direction :left) :up
+      (= current-direction :right) :down)))
+
+(defn move-in-direction [position direction]
+  (cond
+    (= direction :up) (update position :y inc)
+    (= direction :down) (update position :y dec)
+    (= direction :left) (update position :x dec)
+    (= direction :right) (update position :x inc)))
+
+(defn update-position [board-state turn]
+  (let [current-direction (:direction board-state)
+        new-direction (get-new-direction current-direction turn)
+        new-position (move-in-direction (:position board-state) new-direction)]
+    (-> board-state
+        (assoc :position new-position)
+        (assoc :direction new-direction))))
+
+
+(defn update-color [board-state output]
+  (let [color (if (= output 0) :black :white)
+        position (:position board-state)
+        visited (:visited board-state)]
+    (assoc-in board-state
+              [:visited (create-position-key position)]
+              color)))
+
+(defn update-board-state [board-state output output-type]
+  (if (= output-type :direction)
+    (update-position board-state output)
+    (update-color board-state output)))
+
+
+(defn toggle-output-type [prog-state]
+  (if (= (:output-type prog-state) :direction)
+    (assoc prog-state :output-type :color)
+    (assoc prog-state :output-type :direction)))
+
+(defn solve-puzzle []
+  (loop [prog-state init-input]
+    (let [new-prog-state (run-prog prog-state)
+          output (:output new-prog-state)
+          output-type (:output-type new-prog-state)]
       (if (:has-halted new-prog-state)
-        {:output output :board board-state}
-        (recur new-prog-state
-               (conj output (:output new-state))
-               (update-board-state board-state))))))
+        new-prog-state
+        (recur (-> new-prog-state
+                   (toggle-output-type)
+                   (assoc :board
+                          (update-board-state
+                           (:board new-prog-state) output output-type))))))))
+
+(def all-points
+  (-> (solve-puzzle)
+      (:board)
+      (:visited)
+      (->>
+       ;; (filter (fn [[k v]] (= v :white)))
+           (map #(str/split (first %) #":"))
+           (map (fn [v] {:x (edn/read-string (first v)) :y (edn/read-string (second v))})))))
+
+(def visited
+  (-> (solve-puzzle)
+      (:board)
+      (:visited)))
+
+(def points
+  (-> (solve-puzzle)
+      (:board)
+      (:visited)
+      (->> (filter (fn [[k v]] (= v :white)))
+           (map #(str/split (first %) #":"))
+           (map (fn [v] {:x (edn/read-string (first v)) :y (edn/read-string (second v))})))))
+
+(def xs (map :x points))
+(def ys (map :y points))
