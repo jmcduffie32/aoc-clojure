@@ -6,5 +6,6 @@
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [org.clojure/math.combinatorics "0.1.6"]
                  [org.clojure/tools.nrepl "0.2.13"]
+                 [org.clojure/math.numeric-tower "0.0.4"]
                  [incanter "1.9.3"]]
   :repl-options {:init-ns aoc.core})
