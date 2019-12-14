@@ -32,10 +32,6 @@
 
 (defn get-val [program index mode rel-base]
   (let [value-at-index (get program index)]
-    ;; (println "mode:" mode
-    ;;          "index:" index
-    ;;          "rel-base:" rel-base
-    ;;          "value-at-index:" value-at-index)
     (cond
       (= mode 0) (get program value-at-index)
       (= mode 1) (get program index)
@@ -43,26 +39,23 @@
 
 (defn get-output-index [program index mode rel-base]
   (let [value-at-index (get program index)]
-    ;; (println "mode:" mode
-    ;;          "index:" index
-    ;;          "rel-base:" rel-base
-    ;;          "value-at-index:" value-at-index)
     (cond
       (= mode 0) value-at-index
       (= mode 2) (+ value-at-index rel-base))))
 
-(defn create-position-key [position]
-  (str (:x position) ":" (:y position)))
-
-(defn get-current-color [board-state]
-  (let [position (:position board-state)
-        key (create-position-key position)
-        current-color (get (:visited board-state) key :black)]
-    (if (= current-color :black) 0 1)))
+(defn get-joystick-input [{:keys [ball paddle] :as state}]
+  (cond
+    (> (:x ball) (:x paddle)) 1
+    (< (:x ball) (:x paddle)) -1
+    (= (:x ball) (:x paddle)) 0))
 
 (def init-input {:input 1
                  :index 0
                  :output nil
+                 :output-buffer []
+                 :score 0
+                 :ball {:x 0 :y 0}
+                 :paddle {:x 0 :y 0}
                  :output-type :color
                  :input-type :input
                  :program (apply conj prog (take 10000 (repeat 0)))
@@ -75,12 +68,6 @@
   (let [{:keys [program index input-type rel-base]} state
         {:keys [opcode arg1-mode arg2-mode arg3-mode]}
         (parse-opcode (nth program index))]
-    ;; (println "opcode:" opcode
-    ;;          "arg1-mode:" arg1-mode
-    ;;          "arg2-mode:" arg2-mode
-    ;;          "arg3-mode:" arg3-mode
-    ;;          "index:" index
-    ;;          "rel-base:" rel-base)
     (cond
       (= opcode 1) (let [val1 (get-val program (+ index 1) arg1-mode rel-base)
                          val2 (get-val program (+ index 2) arg2-mode rel-base)
@@ -97,7 +84,7 @@
                          (assoc :program (assoc program result-index product))
                          (assoc :index (+ index 4))
                          (recur)))
-      (= opcode 3) (let [input ((:input-type state) state)
+      (= opcode 3) (let [input (get-joystick-input state)
                          result-index (get-output-index program (+ index 1) arg1-mode rel-base)]
                      (-> state
                          (assoc :program (assoc program result-index input))
@@ -155,16 +142,39 @@
           output-type (:output-type new-prog-state)]
       (if (:has-halted new-prog-state)
         output-list
-        (recur (-> new-prog-state
-                   (toggle-output-type)
-                   (assoc :board
-                          (update-board-state
-                           (:board new-prog-state) output output-type)))
+        (recur new-prog-state
                (conj output-list output))))))
 
-(def block-count (->> (solve-puzzle)
-                     (partition 3)
-                     (map #(nth % 2))
-                     (filter #(= 2 %))
-                     (count)))
+;; (def block-count (->> (solve-puzzle)
+;;                      (partition 3)
+;;                      (map #(nth % 2))
+;;                      (filter #(= 2 %))
+;;                      (count)))
+(defn handle-output [{:keys [output-buffer] :as state}]
+  (if (= (count output-buffer) 3)
+    (let [[x y id] output-buffer]
+      (cond
+        (and (= x -1) (= y 0)) (-> state
+                                   (assoc :output-buffer [])
+                                   (assoc :score id))
+        (= id 3) (-> state
+                     (assoc :paddle {:x x :y y})
+                     (assoc :output-buffer []))
+        (= id 4) (-> state
+                     (assoc :ball {:x x :y y})
+                     (assoc :output-buffer []))
+        :else (assoc state :output-buffer [])))
+    state))
+
+(defn solve2 []
+  (loop [prog-state init-input]
+    (println (:index prog-state))
+    ;; (println prog-state)
+    (let [{:keys [output-buffer output] :as new-prog-state} (run-prog prog-state)]
+      (if (:has-halted new-prog-state)
+        (:score new-prog-state)
+        (-> new-prog-state
+            (assoc :output-buffer (conj output-buffer output))
+            (handle-output)
+            (recur))))))
 
